@@ -1,6 +1,7 @@
 package noder
 
 type Noder interface {
+	Nodes() []Node
 	MultiChainNodesStorage() MultiChainNodesStorage
 	NodesStorage() NodesStorage
 }

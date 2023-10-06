@@ -32,7 +32,7 @@ func NewInmemoryHealthy(getter kv.Getter, kvKey *string) Noder {
 func (n *in) MultiChainNodesStorage() MultiChainNodesStorage {
 	return n.mstorage.Do(func() interface{} {
 		storage := NewInmemoryMultiChainNodesStorage()
-		for _, node := range n.getNodes() {
+		for _, node := range n.Nodes() {
 			_ = storage.Add(node)
 		}
 
@@ -43,7 +43,7 @@ func (n *in) MultiChainNodesStorage() MultiChainNodesStorage {
 func (n *in) NodesStorage() NodesStorage {
 	return n.storage.Do(func() interface{} {
 		storage := NewInmemoryNodesStorage()
-		for _, node := range n.getNodes() {
+		for _, node := range n.Nodes() {
 			_ = storage.Add(node)
 		}
 
@@ -51,7 +51,7 @@ func (n *in) NodesStorage() NodesStorage {
 	}).(NodesStorage)
 }
 
-func (n *in) getNodes() []Node {
+func (n *in) Nodes() []Node {
 	return n.nodes.Do(func() interface{} {
 		nodesCfg := struct {
 			Nodes []Node `fig:"storages,required"`
