@@ -13,8 +13,7 @@ type Node struct {
 	Ws    *ethclient.Client `fig:"ws"`
 	WsUrl string            `fig:"ws"`
 
-	ChainTitle string `fig:"chain"`
-	ChainId    int64  `fig:"chain_id,required"`
+	ChainId int64 `fig:"chain_id,required"`
 }
 
 // CheckHealth tries to get current block number and
