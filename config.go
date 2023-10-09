@@ -10,7 +10,7 @@ import (
 	"reflect"
 )
 
-const defaultConfigKey = "noder"
+const defaultConfigKey = "nodes"
 
 type in struct {
 	nodes    comfig.Once
