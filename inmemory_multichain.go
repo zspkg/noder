@@ -35,7 +35,7 @@ func (s *imcs) Add(node Node) error {
 func (s *imcs) GetByChainId(chainId int64) (*Node, error) {
 	storage, ok := s.storages[chainId]
 	if !ok {
-		return nil, nil
+		return nil, ErrorNoSpecifiedNodesFound
 	}
 
 	return storage.Get()
