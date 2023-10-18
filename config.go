@@ -54,7 +54,7 @@ func (n *in) NodesStorage() NodesStorage {
 func (n *in) Nodes() []Node {
 	return n.nodes.Do(func() interface{} {
 		nodesCfg := struct {
-			Nodes []Node `fig:"storages,required"`
+			Nodes []Node `fig:"nodes,required"`
 		}{}
 
 		if err := figure.
@@ -62,11 +62,11 @@ func (n *in) Nodes() []Node {
 			With(figure.BaseHooks, nodesHooks, evmHooks).
 			From(kv.MustGetStringMap(n.getter, n.kvKey)).
 			Please(); err != nil {
-			panic(errors.Wrap(err, "failed to figure out storages"))
+			panic(errors.Wrap(err, "failed to figure out nodes"))
 		}
 
 		if len(nodesCfg.Nodes) == 0 {
-			panic(errors.New("no storages were provided"))
+			panic(errors.New("no nodes were provided"))
 		}
 
 		return nodesCfg.Nodes
