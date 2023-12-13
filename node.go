@@ -4,7 +4,10 @@ import (
 	"context"
 	"fmt"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"time"
 )
+
+const healthyNodeTimeout = 2 * time.Second
 
 type Node struct {
 	Rpc    *ethclient.Client `fig:"rpc,required"`
@@ -14,12 +17,15 @@ type Node struct {
 	WsUrl string            `fig:"ws"`
 
 	ChainId int64 `fig:"chain_id,required"`
+
+	History bool `fig:"history"`
 }
 
-// CheckHealth tries to get current block number and
+// CheckHealth tries to get currentF block number and
 // if it fails, returns false (and true otherwise, respectively)
 func (n Node) CheckHealth() bool {
-	_, err := n.Rpc.BlockNumber(context.Background())
+	ctx, _ := context.WithTimeout(context.Background(), healthyNodeTimeout)
+	_, err := n.Rpc.BlockNumber(ctx)
 	return err == nil
 }
 

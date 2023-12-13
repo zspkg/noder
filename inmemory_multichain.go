@@ -24,7 +24,12 @@ func (s *imcs) Add(node Node) error {
 	defer s.m.Unlock()
 
 	if storage, ok := s.storages[node.ChainId]; !ok {
-		s.storages[node.ChainId] = &nodesStorage{Nodes: []Node{node}}
+		st := NewInmemoryNodesStorage()
+		if err := st.Add(node); err != nil {
+			return err
+		}
+
+		s.storages[node.ChainId] = st
 	} else {
 		_ = storage.Add(node)
 	}
@@ -39,6 +44,33 @@ func (s *imcs) GetByChainId(chainId int64) (*Node, error) {
 	}
 
 	return storage.Get()
+}
+
+func (s *imcs) GetNextByChainId(chainId int64) (*Node, error) {
+	storage, ok := s.storages[chainId]
+	if !ok {
+		return nil, ErrorNoSpecifiedNodesFound
+	}
+
+	return storage.GetNext()
+}
+
+func (s *imcs) GetHistoryByChainId(chainId int64) (*Node, error) {
+	storage, ok := s.storages[chainId]
+	if !ok {
+		return nil, ErrorNoSpecifiedNodesFound
+	}
+
+	return storage.GetHistory()
+}
+
+func (s *imcs) GetNextHistoryByChainId(chainId int64) (*Node, error) {
+	storage, ok := s.storages[chainId]
+	if !ok {
+		return nil, ErrorNoSpecifiedNodesFound
+	}
+
+	return storage.GetNextHistory()
 }
 
 func (s *imcs) ToSingleChain(chainId int64) (NodesStorage, error) {
