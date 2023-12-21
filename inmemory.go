@@ -3,6 +3,7 @@ package noder
 import (
 	"gitlab.com/distributed_lab/logan/v3/errors"
 	"sync"
+	"time"
 )
 
 var (
@@ -18,29 +19,31 @@ type nodesStorage struct {
 	historyCurrIdx int
 	historyNextIdx int
 
-	fm sync.Mutex
-	hm sync.Mutex
+	healthyMap map[string]bool
+
+	fm       sync.RWMutex
+	hm       sync.RWMutex
+	healthyM sync.RWMutex
 }
 
-func NewInmemoryNodesStorage() NodesStorage {
-	return &nodesStorage{
-		full:    []Node{},
-		history: []Node{},
-	}
-}
-
-func (s *nodesStorage) Add(node Node) error {
-	if node.History {
-		s.hm.Lock()
-		s.history = append(s.history, node)
-		s.hm.Unlock()
-	} else {
-		s.fm.Lock()
-		s.full = append(s.full, node)
-		s.fm.Unlock()
+func NewInmemoryNodesStorage(nodes []Node, healthCheckPeriod time.Duration) NodesStorage {
+	storage := &nodesStorage{
+		full:       []Node{},
+		history:    []Node{},
+		healthyMap: map[string]bool{},
 	}
 
-	return nil
+	for _, node := range nodes {
+		if node.History {
+			storage.history = append(storage.history, node)
+		} else {
+			storage.full = append(storage.full, node)
+		}
+	}
+
+	go storage.watchHealth(healthCheckPeriod)
+
+	return storage
 }
 
 func (s *nodesStorage) Get() (*Node, error) {
@@ -48,14 +51,14 @@ func (s *nodesStorage) Get() (*Node, error) {
 		return nil, ErrNoHealthyNodesFound
 	}
 
-	if node := s.currentF(); node.CheckHealth() {
+	if node := s.currentF(); s.healthy(node) {
 		return &node, nil
 	}
 
 	s.fm.Lock()
 
 	// ensure currentF node was not changed by another goroutine
-	if node := s.currentF(); node.CheckHealth() {
+	if node := s.currentF(); s.healthy(node) {
 		s.fm.Unlock()
 		return &node, nil
 	}
@@ -63,7 +66,7 @@ func (s *nodesStorage) Get() (*Node, error) {
 	// circular slice iteration without checking currentF unhealthy node
 	for i := 0; i < len(s.full)-1; i++ {
 		idx := (s.fullCurrIdx + i + 1) % len(s.full)
-		if node := s.full[idx]; node.CheckHealth() {
+		if node := s.full[idx]; s.healthy(node) {
 			s.fullCurrIdx = idx
 			s.fm.Unlock()
 			return &node, nil
@@ -80,14 +83,14 @@ func (s *nodesStorage) GetHistory() (*Node, error) {
 		return nil, ErrNoHealthyNodesFound
 	}
 
-	if node := s.currentH(); node.CheckHealth() {
+	if node := s.currentH(); s.healthy(node) {
 		return &node, nil
 	}
 
 	s.hm.Lock()
 
 	// ensure currentH node was not changed by another goroutine
-	if node := s.currentH(); node.CheckHealth() {
+	if node := s.currentH(); s.healthy(node) {
 		s.hm.Unlock()
 		return &node, nil
 	}
@@ -95,7 +98,7 @@ func (s *nodesStorage) GetHistory() (*Node, error) {
 	// circular slice iteration without checking currentH unhealthy node
 	for i := 0; i < len(s.history)-1; i++ {
 		idx := (s.historyCurrIdx + i + 1) % len(s.history)
-		if node := s.history[idx]; node.CheckHealth() {
+		if node := s.history[idx]; s.healthy(node) {
 			s.historyCurrIdx = idx
 			s.hm.Unlock()
 			return &node, nil
@@ -111,7 +114,7 @@ func (s *nodesStorage) GetNext() (*Node, error) {
 	defer s.hm.Unlock()
 
 	for i := 0; i < len(s.full); i++ {
-		if node := s.nextF(); node.CheckHealth() {
+		if node := s.nextF(); s.healthy(node) {
 			return &node, nil
 		}
 	}
@@ -124,12 +127,37 @@ func (s *nodesStorage) GetNextHistory() (*Node, error) {
 	defer s.fm.Unlock()
 
 	for i := 0; i < len(s.history); i++ {
-		if node := s.nextH(); node.CheckHealth() {
+		if node := s.nextH(); s.healthy(node) {
 			return &node, nil
 		}
 	}
 
 	return nil, ErrNoHealthyNodesFound
+}
+
+func (s *nodesStorage) watchHealth(period time.Duration) {
+	ticker := time.NewTicker(period)
+
+	for {
+		for i := 0; i < len(s.full); i++ {
+			s.healthyM.Lock()
+			s.healthyMap[s.full[i].Name()] = s.full[i].CheckHealth()
+			s.healthyM.Unlock()
+		}
+		for i := 0; i < len(s.history); i++ {
+			s.healthyM.Lock()
+			s.healthyMap[s.history[i].Name()] = s.history[i].CheckHealth()
+			s.healthyM.Unlock()
+		}
+		<-ticker.C
+	}
+}
+
+func (s *nodesStorage) healthy(node Node) bool {
+	s.healthyM.RLock()
+	defer s.healthyM.RUnlock()
+
+	return s.healthyMap[node.Name()]
 }
 
 func (s *nodesStorage) currentF() Node {

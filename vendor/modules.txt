@@ -37,9 +37,6 @@ github.com/crate-crypto/go-kzg-4844
 github.com/crate-crypto/go-kzg-4844/internal/kzg
 github.com/crate-crypto/go-kzg-4844/internal/multiexp
 github.com/crate-crypto/go-kzg-4844/internal/utils
-# github.com/davecgh/go-spew v1.1.1
-## explicit
-github.com/davecgh/go-spew/spew
 # github.com/deckarep/golang-set/v2 v2.1.0
 ## explicit; go 1.18
 github.com/deckarep/golang-set/v2
@@ -139,9 +136,6 @@ github.com/pelletier/go-toml
 # github.com/pkg/errors v0.9.1
 ## explicit
 github.com/pkg/errors
-# github.com/pmezard/go-difflib v1.0.0
-## explicit
-github.com/pmezard/go-difflib/difflib
 # github.com/shirou/gopsutil v3.21.4-0.20210419000835-c7a38de76ee5+incompatible
 ## explicit
 github.com/shirou/gopsutil/cpu
@@ -165,9 +159,6 @@ github.com/spf13/pflag
 # github.com/spf13/viper v1.3.2
 ## explicit
 github.com/spf13/viper
-# github.com/stretchr/testify v1.8.1
-## explicit; go 1.13
-github.com/stretchr/testify/assert
 # github.com/supranational/blst v0.3.11
 ## explicit; go 1.11
 github.com/supranational/blst/bindings/go
@@ -235,9 +226,6 @@ golang.org/x/tools/internal/typesinternal
 # gopkg.in/yaml.v2 v2.4.0
 ## explicit; go 1.15
 gopkg.in/yaml.v2
-# gopkg.in/yaml.v3 v3.0.1
-## explicit
-gopkg.in/yaml.v3
 # rsc.io/tmplfunc v0.0.3
 ## explicit; go 1.17
 rsc.io/tmplfunc

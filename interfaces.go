@@ -1,13 +1,12 @@
 package noder
 
 type Noder interface {
-	Nodes() []Node
+	NodesConfig() NodesConfig
 	MultiChainNodesStorage() MultiChainNodesStorage
 	NodesStorage() NodesStorage
 }
 
 type MultiChainNodesStorage interface {
-	Add(node Node) error
 	GetByChainId(chainId int64) (*Node, error)
 	GetNextByChainId(chainId int64) (*Node, error)
 	GetHistoryByChainId(chainId int64) (*Node, error)
@@ -16,7 +15,6 @@ type MultiChainNodesStorage interface {
 }
 
 type NodesStorage interface {
-	Add(node Node) error
 	Get() (*Node, error)
 	GetNext() (*Node, error)
 	GetHistory() (*Node, error)

@@ -8,6 +8,7 @@ import (
 	"gitlab.com/distributed_lab/kit/kv"
 	"gitlab.com/distributed_lab/logan/v3/errors"
 	"reflect"
+	"time"
 )
 
 const defaultConfigKey = "nodes"
@@ -18,6 +19,11 @@ type in struct {
 	mstorage comfig.Once
 	getter   kv.Getter
 	kvKey    string
+}
+
+type NodesConfig struct {
+	Nodes             []Node        `fig:"nodes,required"`
+	HealthCheckPeriod time.Duration `fig:"health_check_period"`
 }
 
 func NewInmemoryHealthy(getter kv.Getter, kvKey *string) Noder {
@@ -31,31 +37,20 @@ func NewInmemoryHealthy(getter kv.Getter, kvKey *string) Noder {
 
 func (n *in) MultiChainNodesStorage() MultiChainNodesStorage {
 	return n.mstorage.Do(func() interface{} {
-		storage := NewInmemoryMultiChainNodesStorage()
-		for _, node := range n.Nodes() {
-			_ = storage.Add(node)
-		}
-
-		return storage
+		return NewInmemoryMultiChainNodesStorage(n.NodesConfig())
 	}).(MultiChainNodesStorage)
 }
 
 func (n *in) NodesStorage() NodesStorage {
 	return n.storage.Do(func() interface{} {
-		storage := NewInmemoryNodesStorage()
-		for _, node := range n.Nodes() {
-			_ = storage.Add(node)
-		}
-
-		return storage
+		cfg := n.NodesConfig()
+		return NewInmemoryNodesStorage(cfg.Nodes, cfg.HealthCheckPeriod)
 	}).(NodesStorage)
 }
 
-func (n *in) Nodes() []Node {
+func (n *in) NodesConfig() NodesConfig {
 	return n.nodes.Do(func() interface{} {
-		nodesCfg := struct {
-			Nodes []Node `fig:"nodes,required"`
-		}{}
+		nodesCfg := NodesConfig{}
 
 		if err := figure.
 			Out(&nodesCfg).
@@ -69,8 +64,8 @@ func (n *in) Nodes() []Node {
 			panic(errors.New("no nodes were provided"))
 		}
 
-		return nodesCfg.Nodes
-	}).([]Node)
+		return nodesCfg
+	}).(NodesConfig)
 }
 
 var nodesHooks = figure.Hooks{

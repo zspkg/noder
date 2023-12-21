@@ -3,7 +3,6 @@ package noder
 import (
 	"gitlab.com/distributed_lab/logan/v3"
 	"gitlab.com/distributed_lab/logan/v3/errors"
-	"sync"
 )
 
 var (
@@ -12,29 +11,20 @@ var (
 
 type imcs struct {
 	storages map[int64]NodesStorage
-	m        sync.Mutex
 }
 
-func NewInmemoryMultiChainNodesStorage() MultiChainNodesStorage {
-	return &imcs{storages: map[int64]NodesStorage{}}
-}
-
-func (s *imcs) Add(node Node) error {
-	s.m.Lock()
-	defer s.m.Unlock()
-
-	if storage, ok := s.storages[node.ChainId]; !ok {
-		st := NewInmemoryNodesStorage()
-		if err := st.Add(node); err != nil {
-			return err
-		}
-
-		s.storages[node.ChainId] = st
-	} else {
-		_ = storage.Add(node)
+func NewInmemoryMultiChainNodesStorage(cfg NodesConfig) MultiChainNodesStorage {
+	nodesMap := map[int64][]Node{}
+	for _, node := range cfg.Nodes {
+		nodesMap[node.ChainId] = append(nodesMap[node.ChainId], node)
 	}
 
-	return nil
+	storage := &imcs{storages: map[int64]NodesStorage{}}
+	for chainId, nodes := range nodesMap {
+		storage.storages[chainId] = NewInmemoryNodesStorage(nodes, cfg.HealthCheckPeriod)
+	}
+
+	return storage
 }
 
 func (s *imcs) GetByChainId(chainId int64) (*Node, error) {
