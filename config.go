@@ -23,7 +23,7 @@ type in struct {
 
 type NodesConfig struct {
 	Nodes             []Node        `fig:"nodes,required"`
-	HealthCheckPeriod time.Duration `fig:"health_check_period"`
+	HealthCheckPeriod time.Duration `fig:"health_check_period,required"`
 }
 
 func NewInmemoryHealthy(getter kv.Getter, kvKey *string) Noder {
