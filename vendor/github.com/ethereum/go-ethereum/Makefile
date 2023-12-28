@@ -6,7 +6,7 @@
 
 GOBIN = ./build/bin
 GO ?= latest
-GORUN = go run
+GORUN = env GO111MODULE=on go run
 
 geth:
 	$(GORUN) build/ci.go install ./cmd/geth
@@ -16,6 +16,18 @@ geth:
 all:
 	$(GORUN) build/ci.go install
 
+android:
+	$(GORUN) build/ci.go aar --local
+	@echo "Done building."
+	@echo "Import \"$(GOBIN)/geth.aar\" to use the library."
+	@echo "Import \"$(GOBIN)/geth-sources.jar\" to add javadocs"
+	@echo "For more info see https://stackoverflow.com/questions/20994336/android-studio-how-to-attach-javadoc"
+
+ios:
+	$(GORUN) build/ci.go xcode --local
+	@echo "Done building."
+	@echo "Import \"$(GOBIN)/Geth.framework\" to use the library."
+
 test: all
 	$(GORUN) build/ci.go test
 
@@ -23,7 +35,7 @@ lint: ## Run linters.
 	$(GORUN) build/ci.go lint
 
 clean:
-	go clean -cache
+	env GO111MODULE=on go clean -cache
 	rm -fr build/_workspace/pkg/ $(GOBIN)/*
 
 # The devtools target installs tools required for 'go generate'.

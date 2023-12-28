@@ -32,17 +32,8 @@ import (
 )
 
 var (
-	// ErrNotificationsUnsupported is returned by the client when the connection doesn't
-	// support notifications. You can use this error value to check for subscription
-	// support like this:
-	//
-	//	sub, err := client.EthSubscribe(ctx, channel, "newHeads", true)
-	//	if errors.Is(err, rpc.ErrNotificationsUnsupported) {
-	//		// Server does not support subscriptions, fall back to polling.
-	//	}
-	//
-	ErrNotificationsUnsupported = notificationsUnsupportedError{}
-
+	// ErrNotificationsUnsupported is returned when the connection doesn't support notifications
+	ErrNotificationsUnsupported = errors.New("notifications not supported")
 	// ErrSubscriptionNotFound is returned when the notification for the given id is not found
 	ErrSubscriptionNotFound = errors.New("subscription not found")
 )
@@ -184,13 +175,11 @@ func (n *Notifier) activate() error {
 func (n *Notifier) send(sub *Subscription, data json.RawMessage) error {
 	params, _ := json.Marshal(&subscriptionResult{ID: string(sub.ID), Result: data})
 	ctx := context.Background()
-
-	msg := &jsonrpcMessage{
+	return n.h.conn.writeJSON(ctx, &jsonrpcMessage{
 		Version: vsn,
 		Method:  n.namespace + notificationMethodSuffix,
 		Params:  params,
-	}
-	return n.h.conn.writeJSON(ctx, msg, false)
+	})
 }
 
 // A Subscription is created by a notifier and tied to that notifier. The client can use

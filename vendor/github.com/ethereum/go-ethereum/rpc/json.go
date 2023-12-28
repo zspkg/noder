@@ -58,23 +58,19 @@ type jsonrpcMessage struct {
 }
 
 func (msg *jsonrpcMessage) isNotification() bool {
-	return msg.hasValidVersion() && msg.ID == nil && msg.Method != ""
+	return msg.ID == nil && msg.Method != ""
 }
 
 func (msg *jsonrpcMessage) isCall() bool {
-	return msg.hasValidVersion() && msg.hasValidID() && msg.Method != ""
+	return msg.hasValidID() && msg.Method != ""
 }
 
 func (msg *jsonrpcMessage) isResponse() bool {
-	return msg.hasValidVersion() && msg.hasValidID() && msg.Method == "" && msg.Params == nil && (msg.Result != nil || msg.Error != nil)
+	return msg.hasValidID() && msg.Method == "" && msg.Params == nil && (msg.Result != nil || msg.Error != nil)
 }
 
 func (msg *jsonrpcMessage) hasValidID() bool {
 	return len(msg.ID) > 0 && msg.ID[0] != '{' && msg.ID[0] != '['
-}
-
-func (msg *jsonrpcMessage) hasValidVersion() bool {
-	return msg.Version == vsn
 }
 
 func (msg *jsonrpcMessage) isSubscribe() bool {
@@ -104,14 +100,15 @@ func (msg *jsonrpcMessage) errorResponse(err error) *jsonrpcMessage {
 func (msg *jsonrpcMessage) response(result interface{}) *jsonrpcMessage {
 	enc, err := json.Marshal(result)
 	if err != nil {
-		return msg.errorResponse(&internalServerError{errcodeMarshalError, err.Error()})
+		// TODO: wrap with 'internal server error'
+		return msg.errorResponse(err)
 	}
 	return &jsonrpcMessage{Version: vsn, ID: msg.ID, Result: enc}
 }
 
 func errorMessage(err error) *jsonrpcMessage {
 	msg := &jsonrpcMessage{Version: vsn, ID: null, Error: &jsonError{
-		Code:    errcodeDefault,
+		Code:    defaultErrorCode,
 		Message: err.Error(),
 	}}
 	ec, ok := err.(Error)
@@ -168,22 +165,18 @@ type ConnRemoteAddr interface {
 // support for parsing arguments and serializing (result) objects.
 type jsonCodec struct {
 	remote  string
-	closer  sync.Once        // close closed channel once
-	closeCh chan interface{} // closed on Close
-	decode  decodeFunc       // decoder to allow multiple transports
-	encMu   sync.Mutex       // guards the encoder
-	encode  encodeFunc       // encoder to allow multiple transports
+	closer  sync.Once                 // close closed channel once
+	closeCh chan interface{}          // closed on Close
+	decode  func(v interface{}) error // decoder to allow multiple transports
+	encMu   sync.Mutex                // guards the encoder
+	encode  func(v interface{}) error // encoder to allow multiple transports
 	conn    deadlineCloser
 }
-
-type encodeFunc = func(v interface{}, isErrorResponse bool) error
-
-type decodeFunc = func(v interface{}) error
 
 // NewFuncCodec creates a codec which uses the given functions to read and write. If conn
 // implements ConnRemoteAddr, log messages will use it to include the remote address of
 // the connection.
-func NewFuncCodec(conn deadlineCloser, encode encodeFunc, decode decodeFunc) ServerCodec {
+func NewFuncCodec(conn deadlineCloser, encode, decode func(v interface{}) error) ServerCodec {
 	codec := &jsonCodec{
 		closeCh: make(chan interface{}),
 		encode:  encode,
@@ -202,11 +195,7 @@ func NewCodec(conn Conn) ServerCodec {
 	enc := json.NewEncoder(conn)
 	dec := json.NewDecoder(conn)
 	dec.UseNumber()
-
-	encode := func(v interface{}, isErrorResponse bool) error {
-		return enc.Encode(v)
-	}
-	return NewFuncCodec(conn, encode, dec.Decode)
+	return NewFuncCodec(conn, enc.Encode, dec.Decode)
 }
 
 func (c *jsonCodec) peerInfo() PeerInfo {
@@ -236,7 +225,7 @@ func (c *jsonCodec) readBatch() (messages []*jsonrpcMessage, batch bool, err err
 	return messages, batch, nil
 }
 
-func (c *jsonCodec) writeJSON(ctx context.Context, v interface{}, isErrorResponse bool) error {
+func (c *jsonCodec) writeJSON(ctx context.Context, v interface{}) error {
 	c.encMu.Lock()
 	defer c.encMu.Unlock()
 
@@ -245,7 +234,7 @@ func (c *jsonCodec) writeJSON(ctx context.Context, v interface{}, isErrorRespons
 		deadline = time.Now().Add(defaultWriteTimeout)
 	}
 	c.conn.SetWriteDeadline(deadline)
-	return c.encode(v, isErrorResponse)
+	return c.encode(v)
 }
 
 func (c *jsonCodec) close() {
